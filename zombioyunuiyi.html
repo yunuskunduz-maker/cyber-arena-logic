@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>CYBER-ARENA: TOWER DEFENSE 2026</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; }
+        #canvas-container { position: absolute; width: 100%; height: 100%; top: 0; left: 0; }
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .panel { position: absolute; background: rgba(0, 0, 0, 0.85); border: 2px solid #00ff00; color: #00ff00; padding: 12px; border-radius: 5px; pointer-events: all; font-weight: bold; }
+        #top-left { top: 20px; left: 20px; }
+        #top-center { top: 20px; left: 50%; transform: translateX(-50%); width: 300px; text-align: center; border-color: #ff00ff; color: #ff00ff; }
+        #bottom-right { bottom: 20px; right: 20px; text-align: right; }
+        #center-msg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.9); color: #fff; z-index: 1000; cursor: pointer; pointer-events: all; }
+        #shop { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; display: none; z-index: 1001; background: #111; border: 4px solid #00ff00; max-height: 85vh; overflow-y: auto; color: #fff; }
+        .shop-item { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; padding: 10px; background: #222; border: 1px solid #00ff00; }
+        button { background: #00ff00; color: #000; border: none; padding: 10px 15px; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 16px; height: 16px; border: 2px solid #00ff00; border-radius: 50%; pointer-events: none; }
+        .bar-container { width: 100%; height: 10px; background: #333; margin-top: 5px; border: 1px solid #555; }
+        .bar-fill { height: 100%; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div id="crosshair"></div>
+
+<div id="hud">
+    <div id="top-left" class="panel">
+        <div id="cycle-text">DÖNGÜ: GÜNDÜZ</div>
+        <div>DALGA: <span id="wave-count">1</span></div>
+        <div>OYUNCU HP: <span id="hp-val">100</span> | BOMBA: <span id="grenade-count">3</span></div>
+        <div class="bar-container"><div id="hp-fill" class="bar-fill" style="width: 100%; background: #00ff00;"></div></div>
+    </div>
+
+    <div id="top-center" class="panel">
+        <div style="font-size: 1.2em; letter-spacing: 2px;">ANA KULE DURUMU</div>
+        <div>KULE HP: <span id="tower-hp-val">1000</span> / 1000</div>
+        <div class="bar-container"><div id="tower-hp-fill" class="bar-fill" style="width: 100%; background: #ff00ff;"></div></div>
+    </div>
+
+    <div id="bottom-right" class="panel">
+        <div id="weapon-name" style="color: #00ff00;">PULSE PISTOL</div>
+        <div id="ammo-display" style="font-size: 30px;">30 / 120</div>
+        <div>KREDİ: <span id="credits">0</span> $</div>
+    </div>
+
+    <div id="center-msg">
+        <h1 style="font-size: 3.5em; color: #00ff00; text-shadow: 0 0 20px #00ff00;">CYBER TOWER DEFENSE</h1>
+        <p style="font-size: 1.2em;">Zombiler gece ANA KULEYE saldıracak! Kuleyi koru.</p>
+        <p style="font-size: 1.5em; color: #ff00ff; margin-top: 20px;">BAŞLATMAK İÇİN TIKLA</p>
+    </div>
+
+    <div id="shop" class="panel">
+        <h2 style="text-align: center; color: #00ff00;">MİLLİ SAVUNMA MARKETİ</h2>
+        <div id="shop-list"></div>
+        <button style="width: 100%; margin-top: 10px; background: #ff4400; color: #fff;" onclick="game.toggleShop(false)">KAPAT</button>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    class Game {
+        constructor() {
+            this.initScene();
+            this.player = new Player(this);
+            this.enemies = []; this.allies = []; this.grenades = [];
+            this.wave = 1; this.credits = 5000; this.isPaused = true;
+            this.isNight = false;
+            this.towerHP = 1000;
+            
+            this.setupEvents();
+            this.initShop();
+            this.addTrees(30);
+            this.animate();
+        }
+
+        initScene() {
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(0x87ceeb);
+            this.scene.fog = new THREE.FogExp2(0x87ceeb, 0.012);
+
+            this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            this.scene.add(this.camera);
+
+            this.renderer = new THREE.WebGLRenderer({ antialias: true });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+
+            this.ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            this.scene.add(this.ambientLight);
+            
+            this.sunLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            this.sunLight.position.set(5, 20, 5);
+            this.scene.add(this.sunLight);
+
+            this.flashlight = new THREE.SpotLight(0xffffff, 0);
+            this.flashlight.distance = 50;
+            this.flashlight.angle = Math.PI / 6;
+            this.camera.add(this.flashlight);
+            this.flashlight.position.set(0, 0, 1);
+            this.flashlight.target = new THREE.Object3D();
+            this.camera.add(this.flashlight.target);
+            this.flashlight.target.position.set(0, 0, -5);
+
+            // Zemin
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x2d3a22 }));
+            floor.rotation.x = -Math.PI / 2;
+            this.scene.add(floor);
+
+            // ANA KULE (Merkezde)
+            const towerGeo = new THREE.CylinderGeometry(3, 4, 15, 8);
+            const towerMat = new THREE.MeshPhongMaterial({ color: 0x222222, emissive: 0xff00ff, emissiveIntensity: 0.2 });
+            this.tower = new THREE.Mesh(towerGeo, towerMat);
+            this.tower.position.set(0, 7.5, 0);
+            this.scene.add(this.tower);
+
+            // SİPERLER (Kule etrafında)
+            for(let i=0; i<4; i++){
+                const wall = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 2), new THREE.MeshPhongMaterial({color: 0x555555}));
+                const angle = (i * Math.PI) / 2;
+                wall.position.set(Math.cos(angle)*12, 1.5, Math.sin(angle)*12);
+                wall.rotation.y = -angle;
+                this.scene.add(wall);
+            }
+        }
+
+        addTrees(count) {
+            for(let i=0; i<count; i++) {
+                const tree = new THREE.Group();
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 3), new THREE.MeshPhongMaterial({color: 0x3d2b1f}));
+                trunk.position.y = 1.5;
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(2.5, 6, 8), new THREE.MeshPhongMaterial({color: 0x0a1a0a}));
+                leaves.position.y = 5;
+                tree.add(trunk, leaves);
+                const x = (Math.random() - 0.5) * 200;
+                const z = (Math.random() - 0.5) * 200;
+                if(Math.abs(x) > 20 || Math.abs(z) > 20) { tree.position.set(x, 0, z); this.scene.add(tree); }
+            }
+        }
+
+        updateCycle() {
+            const cycleText = document.getElementById('cycle-text');
+            if (this.enemies.length === 0 && this.isNight) {
+                this.isNight = false;
+                this.wave++;
+                this.ambientLight.intensity = 0.8;
+                this.flashlight.intensity = 0;
+                this.scene.background.setHex(0x87ceeb);
+                this.scene.fog.color.setHex(0x87ceeb);
+                cycleText.innerText = "DÖNGÜ: GÜNDÜZ";
+                cycleText.style.color = "#00ff00";
+            } else if (!this.isNight && this.enemies.length === 0) {
+                // Gündüz süresi (30 saniye)
+                if(!this.dayTimer) this.dayTimer = Date.now();
+                let elapsed = Date.now() - this.dayTimer;
+                let remaining = Math.ceil((30000 - elapsed) / 1000);
+                cycleText.innerText = `SALDIRIYA SON: ${remaining}s`;
+                
+                if (elapsed > 30000) {
+                    this.isNight = true;
+                    this.dayTimer = null;
+                    this.ambientLight.intensity = 0.25;
+                    this.flashlight.intensity = 1.5;
+                    this.scene.background.setHex(0x020202);
+                    this.scene.fog.color.setHex(0x020202);
+                    cycleText.innerText = "GECE (KULEYİ KORU!)";
+                    cycleText.style.color = "#ff0000";
+                    this.spawnWave();
+                }
+            }
+        }
+
+        setupEvents() {
+            const startBtn = document.getElementById('center-msg');
+            startBtn.addEventListener('click', () => document.body.requestPointerLock());
+            document.addEventListener('pointerlockchange', () => {
+                this.isPaused = document.pointerLockElement !== document.body;
+                startBtn.style.display = this.isPaused ? 'flex' : 'none';
+            });
+            document.addEventListener('keydown', (e) => {
+                if (this.isPaused) return;
+                if (e.code === 'KeyM') this.toggleShop(true);
+                if (e.code === 'KeyR') this.player.weapon.reload();
+                if (e.code === 'KeyG') this.player.throwGrenade();
+                if (e.code === 'Space') this.player.jump();
+            });
+        }
+
+        initShop() {
+            const items = [
+                {id:'smg', n:'KARAKURT SMG', p:1500}, {id:'shotgun', n:'EJDER POMPALI', p:2500},
+                {id:'turret', n:'SAVUNMA TARETİ', p:3000},
+                {id:'soldier_p', n:'ASAYİŞ ASKERİ', p:4500},
+                {id:'soldier_s', n:'KOMANDO (SMG)', p:8500},
+                {id:'soldier_h', n:'AĞIR MUHAFIZ', p:12500}
+            ];
+            const list = document.getElementById('shop-list');
+            items.forEach(i => { list.innerHTML += `<div class="shop-item"><span>${i.n}<br><small>${i.p}$</small></span><button onclick="game.buy('${i.id}', ${i.p})">AL</button></div>`; });
+        }
+
+        buy(id, price) {
+            if (this.credits >= price) {
+                this.credits -= price;
+                const pPos = this.player.camera.position.clone();
+                const pDir = new THREE.Vector3(0,0,-1).applyQuaternion(this.player.camera.quaternion);
+                const spawnPos = pPos.add(pDir.multiplyScalar(4)); spawnPos.y = 0.5;
+                if (id === 'smg') this.player.weapon.upgrade('smg');
+                if (id === 'shotgun') this.player.weapon.upgrade('shotgun');
+                if (id === 'turret') this.allies.push(new Turret(this, spawnPos));
+                if (id.startsWith('soldier')) {
+                    let type = id.split('_')[1];
+                    this.allies.push(new AllySoldier(this, spawnPos, type === 'p' ? 'pistol' : type === 's' ? 'smg' : 'shotgun'));
+                }
+                this.player.updateUI(); this.toggleShop(false);
+            }
+        }
+
+        toggleShop(show) { document.getElementById('shop').style.display = show ? 'block' : 'none'; if (show) document.exitPointerLock(); else document.body.requestPointerLock(); }
+        spawnWave() { for (let i = 0; i < 5 + this.wave * 4; i++) this.enemies.push(new Zombie(this)); document.getElementById('wave-count').innerText = this.wave; }
+
+        towerTakeDamage(amt) {
+            this.towerHP -= amt;
+            document.getElementById('tower-hp-val').innerText = Math.round(this.towerHP);
+            document.getElementById('tower-hp-fill').style.width = (this.towerHP / 10) + "%";
+            if (this.towerHP <= 0) { alert("KULE YIKILDI! OYUN BİTTİ."); location.reload(); }
+        }
+
+        animate() {
+            requestAnimationFrame(() => this.animate());
+            if (this.isPaused) return;
+            this.updateCycle();
+            this.player.update();
+            for (let i = this.enemies.length - 1; i >= 0; i--) {
+                const z = this.enemies[i];
+                z.update(this.player, this.allies, this.tower);
+                if (z.dead) { this.scene.remove(z.mesh); this.enemies.splice(i, 1); this.credits += 400; this.player.updateUI(); }
+            }
+            this.allies.forEach((a, i) => { a.update(this.enemies); if (a.dead) { this.scene.remove(a.mesh); this.allies.splice(i, 1); } });
+            this.grenades.forEach((g, i) => { g.update(); if (g.exploded) { this.scene.remove(g.mesh); this.grenades.splice(i, 1); } });
+            this.renderer.render(this.scene, this.camera);
+        }
+    }
+
+    class Player {
+        constructor(game) {
+            this.game = game; this.hp = 100; this.grenades = 3; this.keys = {};
+            this.camera = game.camera; this.camera.rotation.order = 'YXZ';
+            this.velocityY = 0; this.isGrounded = true; this.height = 1.6; this.camera.position.y = this.height;
+            this.camera.position.set(20, this.height, 20); // Kule dışında başla
+            this.weapon = new Weapon(this);
+            window.onkeydown = (e) => this.keys[e.code] = true;
+            window.onkeyup = (e) => this.keys[e.code] = false;
+            window.onmousemove = (e) => { if (!this.game.isPaused) { this.camera.rotation.y -= e.movementX * 0.002; this.camera.rotation.x -= e.movementY * 0.002; this.camera.rotation.x = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, this.camera.rotation.x)); }};
+            window.onmousedown = (e) => { if (!this.game.isPaused) { if(e.button === 0) this.weapon.isFiring = true; if(e.button === 2) this.weapon.setADS(true); }};
+            window.onmouseup = (e) => { if(e.button === 0) this.weapon.isFiring = false; if(e.button === 2) this.weapon.setADS(false); };
+        }
+        jump() { if (this.isGrounded) { this.velocityY = 0.15; this.isGrounded = false; } }
+        throwGrenade() { if (this.grenades > 0) { this.grenades--; this.game.grenades.push(new Grenade(this.game)); this.updateUI(); } }
+        update() {
+            const speed = 0.15; const dir = new THREE.Vector3();
+            if (this.keys['KeyW']) dir.z -= 1; if (this.keys['KeyS']) dir.z += 1;
+            if (this.keys['KeyA']) dir.x -= 1; if (this.keys['KeyD']) dir.x += 1;
+            dir.normalize().applyQuaternion(this.camera.quaternion);
+            this.camera.position.x += dir.x * speed; this.camera.position.z += dir.z * speed;
+            this.velocityY -= 0.008; this.camera.position.y += this.velocityY;
+            if (this.camera.position.y <= this.height) { this.camera.position.y = this.height; this.velocityY = 0; this.isGrounded = true; }
+            this.weapon.update();
+        }
+        takeDamage(amt) { this.hp -= amt; this.updateUI(); if (this.hp <= 0) location.reload(); }
+        updateUI() { document.getElementById('hp-val').innerText = Math.round(this.hp); document.getElementById('hp-fill').style.width = this.hp + "%"; document.getElementById('credits').innerText = this.game.credits; document.getElementById('grenade-count').innerText = this.grenades; this.weapon.updateUI(); }
+    }
+
+    class Weapon {
+        constructor(player) {
+            this.player = player; this.damage = 35; this.fireRate = 400; this.lastFire = 0;
+            this.ammo = 30; this.maxAmmo = 30; this.reserveAmmo = 120;
+            this.isReloading = false; this.isADS = false; this.isFiring = false; this.type = 'pistol';
+            this.createModel('pistol');
+        }
+        createModel(type) {
+            if(this.mesh) this.player.camera.remove(this.mesh);
+            this.mesh = new THREE.Group();
+            const mat = new THREE.MeshPhongMaterial({color: 0x111111});
+            if (type === 'smg') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.6), mat);
+                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, 0.1), mat); mag.position.set(0, -0.2, -0.1);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.25), mat); barrel.rotation.x = Math.PI/2; barrel.position.z = -0.4;
+                this.mesh.add(body, mag, barrel);
+            } else if (type === 'shotgun') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.6), mat);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7), mat); barrel.rotation.x = Math.PI/2; barrel.position.z = -0.4;
+                const pump = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.3), new THREE.MeshPhongMaterial({color: 0x333333})); pump.position.set(0, -0.12, -0.2);
+                const stock = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.2, 0.3), mat); stock.position.z = 0.4;
+                this.mesh.add(body, barrel, pump, stock);
+            } else { this.mesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.4), mat)); }
+            this.player.camera.add(this.mesh); this.mesh.position.set(0.4, -0.4, -0.8);
+        }
+        upgrade(type) {
+            this.type = type;
+            if (type === 'smg') { this.damage = 35; this.fireRate = 120; this.maxAmmo = 45; this.ammo = 45; this.reserveAmmo = 180; this.createModel('smg'); document.getElementById('weapon-name').innerText = "KARAKURT SMG"; }
+            else { this.damage = 150; this.fireRate = 850; this.maxAmmo = 8; this.ammo = 8; this.reserveAmmo = 32; this.createModel('shotgun'); document.getElementById('weapon-name').innerText = "EJDER POMPALI"; }
+            this.updateUI();
+        }
+        setADS(val) { this.isADS = val; this.player.camera.fov = val ? 45 : 75; this.mesh.position.set(val?0:0.4, val?-0.25:-0.4, val?-0.5:-0.8); this.player.camera.updateProjectionMatrix(); }
+        reload() {
+            if (this.isReloading || this.ammo === this.maxAmmo || this.reserveAmmo <= 0) return;
+            this.isReloading = true; document.getElementById('ammo-display').innerText = "DOLUYOR...";
+            setTimeout(() => { let transfer = Math.min(this.maxAmmo - this.ammo, this.reserveAmmo); this.ammo += transfer; this.reserveAmmo -= transfer; this.isReloading = false; this.updateUI(); }, 1500);
+        }
+        update() { if (this.isFiring) this.shoot(); this.animateIdle(); }
+        shoot() {
+            if (Date.now() - this.lastFire < this.fireRate || this.ammo <= 0 || this.isReloading) return;
+            this.lastFire = Date.now(); this.ammo--; this.updateUI();
+            this.mesh.position.z += 0.05; setTimeout(() => this.mesh.position.z -= 0.05, 50);
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(0,0), this.player.camera);
+            const targetMeshes = this.player.game.enemies.map(z => z.mesh);
+            const hits = ray.intersectObjects(targetMeshes, true); 
+            if (hits.length > 0) {
+                let current = hits[0].object;
+                while (current.parent && !current.userData.instance) { current = current.parent; }
+                if (current.userData.instance) { current.userData.instance.takeDamage(this.damage); }
+            }
+        }
+        updateUI() { if (!this.isReloading) document.getElementById('ammo-display').innerText = `${this.ammo} / ${this.reserveAmmo}`; }
+        animateIdle() { if (!this.isADS) this.mesh.position.y = -0.4 + Math.sin(Date.now() * 0.005) * 0.01; }
+    }
+
+    class Turret {
+        constructor(game, pos) {
+            this.game = game; this.dead = false; this.lastFire = 0; this.hp = 100;
+            this.mesh = new THREE.Group();
+            const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.7,0.4), new THREE.MeshPhongMaterial({color:0x222}));
+            const g = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.8), new THREE.MeshPhongMaterial({color:0xf00}));
+            g.position.y = 0.3; this.mesh.add(b, g);
+            this.mesh.position.copy(pos); this.game.scene.add(this.mesh);
+        }
+        update(enemies) { 
+            if (enemies.length === 0) return;
+            let nearest = null; let minDist = 45;
+            enemies.forEach(e => { const d = e.mesh.position.distanceTo(this.mesh.position); if (d < minDist) { minDist = d; nearest = e; } });
+            if (nearest) { this.mesh.lookAt(nearest.mesh.position.x, 0.5, nearest.mesh.position.z); if (Date.now() - this.lastFire > 400) { nearest.takeDamage(20); this.lastFire = Date.now(); } } 
+        }
+        takeDamage(amt) { this.hp -= amt; if(this.hp <= 0) this.dead = true; }
+    }
+
+    class AllySoldier {
+        constructor(game, pos, weaponType) {
+            this.game = game; this.dead = false; this.lastFire = 0;
+            const configs = {
+                pistol: {hp: 250, dmg: 40, rate: 700, color: 0x2980b9},
+                smg: {hp: 500, dmg: 25, rate: 150, color: 0x27ae60},
+                shotgun: {hp: 950, dmg: 180, rate: 1500, color: 0xc0392b}
+            };
+            const conf = configs[weaponType];
+            this.hp = conf.hp; this.damage = conf.dmg; this.fireRate = conf.rate;
+            this.mesh = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.3, 0.4), new THREE.MeshPhongMaterial({color: conf.color}));
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({color: 0xf39c12})); head.position.y = 0.9;
+            const weapon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.4), new THREE.MeshPhongMaterial({color: 0x000})); weapon.position.set(0.3, 0.3, -0.4);
+            this.mesh.add(body, head, weapon); this.mesh.position.copy(pos); this.game.scene.add(this.mesh);
+        }
+        update(enemies) { 
+            if (this.hp <= 0) { this.dead = true; return; } 
+            const pPos = this.game.player.camera.position; 
+            let nearest = null; let minDist = 50;
+            enemies.forEach(e => { const d = e.mesh.position.distanceTo(this.mesh.position); if (d < minDist) { minDist = d; nearest = e; } });
+            if (nearest) {
+                this.mesh.lookAt(nearest.mesh.position.x, 0.65, nearest.mesh.position.z); 
+                if (Date.now() - this.lastFire > this.fireRate) { nearest.takeDamage(this.damage); this.lastFire = Date.now(); } 
+            } else { this.mesh.lookAt(pPos.x, 0.65, pPos.z); }
+            if (this.mesh.position.distanceTo(pPos) > 7) { 
+                const d = new THREE.Vector3().subVectors(pPos, this.mesh.position).normalize(); 
+                this.mesh.position.addScaledVector(d, 0.1); 
+            } 
+        }
+        takeDamage(amt) { this.hp -= amt; if(this.hp <= 0) this.dead = true; }
+    }
+
+    class Zombie {
+        constructor(game) {
+            this.game = game; this.dead = false; this.hp = 100 + (game.wave * 25);
+            this.mesh = new THREE.Group(); this.mesh.userData.instance = this;
+            const mat = new THREE.MeshPhongMaterial({ color: 0x39ff14, emissive: 0x004400, emissiveIntensity: 0.5 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.3, 0.4), mat);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), mat); head.position.y = 0.8;
+            this.mesh.add(body, head);
+            const a = Math.random() * Math.PI * 2; 
+            this.mesh.position.set(Math.cos(a) * 85, 0.6, Math.sin(a) * 85); 
+            this.game.scene.add(this.mesh);
+        }
+        update(player, allies, tower) { 
+            // Hedef Seçimi: Kuleye mi, Oyuncuya mı?
+            let targets = [
+                { pos: tower.position, obj: 'tower', dist: this.mesh.position.distanceTo(tower.position) },
+                { pos: player.camera.position, obj: 'player', dist: this.mesh.position.distanceTo(player.camera.position) }
+            ];
+            allies.forEach(a => targets.push({ pos: a.mesh.position, obj: 'ally', target: a, dist: this.mesh.position.distanceTo(a.mesh.position) }));
+
+            // En yakın hedefi bul
+            targets.sort((a,b) => a.dist - b.dist);
+            let bestTarget = targets[0];
+
+            const dir = new THREE.Vector3().subVectors(bestTarget.pos, this.mesh.position); dir.y = 0; dir.normalize(); 
+            if (bestTarget.dist > 4) { // Kule/Siper mesafesi
+                this.mesh.position.addScaledVector(dir, 0.1 + (this.game.wave * 0.005)); this.mesh.lookAt(bestTarget.pos.x, 0.6, bestTarget.pos.z); 
+            } else { 
+                if(bestTarget.obj === 'tower') this.game.towerTakeDamage(0.5);
+                else if(bestTarget.obj === 'player') player.takeDamage(0.8);
+                else if(bestTarget.obj === 'ally') bestTarget.target.takeDamage(1);
+            } 
+        }
+        takeDamage(amt) { this.hp -= amt; if (this.hp <= 0) this.dead = true; }
+    }
+
+    class Grenade {
+        constructor(game) {
+            this.game = game; this.exploded = false; this.timer = 2000;
+            this.velocity = new THREE.Vector3(0, 0.2, -0.6).applyQuaternion(game.camera.quaternion);
+            this.mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshPhongMaterial({ color: 0x000 }));
+            this.mesh.position.copy(game.camera.position); this.game.scene.add(this.mesh);
+        }
+        update() { this.velocity.y -= 0.01; this.mesh.position.add(this.velocity); if (this.mesh.position.y < 0.2) { this.mesh.position.y = 0.2; this.velocity.set(0,0,0); } this.timer -= 16; if (this.timer <= 0 && !this.exploded) this.explode(); }
+        explode() { this.exploded = true; this.game.enemies.forEach(z => { if (z.mesh.position.distanceTo(this.mesh.position) < 14) z.takeDamage(450); }); }
+    }
+
+    window.game = new Game();
+});
+</script>
+</body>
+</html>
