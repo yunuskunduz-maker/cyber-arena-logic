@@ -1,43 +1,32 @@
-GitHub projen cyber-arena-logic için profesyonel, akademik ağırlıklı ve kontrolleri içeren README.md dosya içeriğini aşağıda hazırladım.
+# Cyber-Arena: Logic Defense Game
 
-Bu metni kopyalayıp VS Code içinde oluşturacağın README.md dosyasına yapıştırabilir ve ardından GitHub'a gönderebilirsin.
+Bu proje, nesne yönelimli programlama (OOP), algoritma mantığı ve interaktif web teknolojilerini pekiştirmek amacıyla geliştirilmiş, tarayıcı tabanlı bir 3D kule savunma (Tower Defense) oyunudur. Three.js kütüphanesi kullanılarak geliştirilen bu çalışma, dinamik nesne yönetimi ve kullanıcı etkileşimi üzerine odaklanmaktadır.
 
-Cyber-Arena: Logic Defense Game
-Bu proje, üniversite düzeyindeki bilgisayar programcılığı ve mühendislik eğitimi sürecinde; nesne yönelimli programlama (OOP), algoritma mantığı ve interaktif web teknolojilerini pekiştirmek amacıyla geliştirilmiş akademik bir çalışmadır.
+## 🚀 Proje Hakkında
+Cyber-Arena, oyuncunun ana kuleyi zombi dalgalarına karşı koruduğu stratejik bir savunma simülasyonudur. Oyun; gece-gündüz döngüsü, gelişmiş silah sistemleri, satın alınabilir müttefik birlikler ve kule savunma mekanizmalarını içermektedir.
 
-📌 Proje Hakkında
-Cyber-Arena, kullanıcı etkileşimi ve dinamik nesne yönetimi üzerine odaklanan bir web tabanlı savunma oyunudur. Projenin temel amacı, karmaşık karar mekanizmalarının ve grafik işleme süreçlerinin (HTML5 Canvas) optimize edilerek bir araya getirilmesidir.
+## 🎮 Kontroller ve Oynanış
+Oyun deneyimini optimize etmek için aşağıdaki kontroller tanımlanmıştır:
 
-Temel Kazanımlar:
-JavaScript ile Nesne Yönelimli Programlama (OOP) yapısı.
+* **Hareket:** `W`, `A`, `S`, `D` tuşları ile karakter kontrolü sağlanır.
+* **Bakış/Nişan:** Fare hareketi ile çevre kontrol edilir.
+* **Ateş Etme:** `Sol Tık` ile aktif silah ateşlenir.
+* **Dürbün (ADS):** `Sağ Tık` ile hassas nişan alma moduna geçilir.
+* **Zıplama:** `Space` tuşu ile dikey hareket sağlanır.
+* **Şarjör Yenileme:** `R` tuşu ile mühimmat tazelenir.
+* **El Bombası:** `G` tuşu ile alan hasarı veren patlayıcı atılır.
+* **Savunma Marketi:** `M` tuşu ile silah, müttefik asker ve savunma taretleri satın alınabilir.
+* **Kule Tamiri:** Kule yakınındayken `E` tuşu ile (500$ kredi karşılığında) kule canı yenilenebilir.
 
-Dinamik çarpışma algılama (Collision Detection) algoritmaları.
+## 🛠️ Teknik Özellikler
+* **Dil:** JavaScript (ES6+)
+* **Grafik Motoru:** Three.js (WebGL tabanlı)
+* **Stil:** CSS3 & HTML5 Canvas
+* **Sürüm Kontrolü:** Git & GitHub
 
-Asenkron olay yönetimi ve kullanıcı arayüzü (UI) entegrasyonu.
+## 📈 Geliştirici Notları
+Bu çalışma, karmaşık olay yönetimi (Event Handling) ve 3D render süreçlerinin optimizasyonu üzerine bir vaka çalışması niteliğindedir. Müttefik birliklerin hedefleme algoritmaları ve zombi yapay zekası, dinamik dizi yönetimi ile optimize edilmiştir.
 
-🛠️ Kullanılan Teknolojiler
-Dil: JavaScript (ES6+), HTML5, CSS3
-
-Grafik Motoru: HTML5 Canvas API
-
-Versiyon Kontrol: Git & GitHub
-
-🎮 Kontroller
-Oyun içerisindeki etkileşimler aşağıdaki tuş takımı üzerinden sağlanmaktadır:
-
-WASD: Hareket kontrolü (Yukarı, Sol, Aşağı, Sağ).
-
-Sol Ok Tuşu: Alternatif hareket veya özel eylem.
-
-ESC: Oyunu duraklatma veya menüye dönüş.
-
-R: Silah/Ekipman yenileme (Reload).
-
-M: Harita veya Menü kontrolü.
-
-G: Özel yetenek veya ekipman kullanımı (Grenade/Gadget).
-
-🚀 Canlı Demo
-Oyunu tarayıcı üzerinden doğrudan deneyimlemek için aşağıdaki bağlantıyı ziyaret edebilirsiniz:
-
-https://yunuskunduz-maker.github.io/cyber-arena-logic/zombie_defense_game.html
+---
+**Geliştirici:** Yunus Kunduz  
+**Canlı Link:** [Oyunu Buradan Oynayın](https://yunuskunduz-maker.github.io/cyber-arena-logic/)
