@@ -55,4 +55,7 @@
 **Developer:** Yunus Kunduz
 **Education:** Necmettin Erbakan University - Electrical & Electronics Engineering
 **YouTube:** [CozumLab](https://www.youtube.com/@CozumLabTR)
+
+---
+
 **Live Demo:** [Play the Game Here](https://yunuskunduz-maker.github.io/cyber-arena-logic/zombie_defense_game.html)
